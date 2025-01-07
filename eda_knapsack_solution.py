@@ -1,91 +1,56 @@
-# items = [
-#     {
-#         "weight": 12,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-#     {
-#         "weight": 10,
-#         "value": 20
-#     },
-# ]
-# weight_limit = 2
+import random
 
-# def fitness(items):
-#     return sum(items)
-
-# def create_dp_table(items, weight_limit):
-#     dp = [[0 for _ in range(weight_limit + 1)] for _ in range(len(items) + 1)]
-#     print(dp)
+def knapsack_value(solution, items, weight_limit):
     
-#     for i in range(1,len(items) + 1):
-#         for w in range(weight_limit + 1):
-#             weight = items[i]['weight'] 
-#             value = items[i]['value'] 
-#             if weight <= w:
-#                 dp[i][w] = max(dp[i][w], value + dp[i][w - weight])
-#             else:
-#                 dp[i][w] = dp[i-1][w]
+    total_value = 0
+    total_weight = 0
+    for i in range(len(solution)):
+        if solution[i] == 1:
+            total_weight += items[i]['weight']
+            if total_weight > weight_limit:  # Invalid solution
+                return 0, total_weight
+            total_value += items[i]['value']
+    return total_value, total_weight
+
+
+def eda_knapsack(items, weight_limit, population_size=20, generations=100):
     
-# create_dp_table(items, weight_limit)
-
-
-def knapsack(items, weight_limit):
-    """
-    Solves the 0/1 Knapsack Problem using dynamic programming.
-
-    :param items: List of dictionaries, each with 'weight' and 'value'.
-    :param weight_limit: Maximum weight capacity of the knapsack.
-    :return: Maximum value and the list of items included in the knapsack.
-    """
     n = len(items)
+    probabilities = [0.5] * n  # Start with a uniform distribution for each item
 
-    # Create DP table with dimensions (len(items)+1) x (weight_limit+1), initialized to 0
-    dp = [[0 for _ in range(weight_limit + 1)] for _ in range(len(items) + 1)]
+    best_solution = None
+    best_value = 0
 
-    # Fill the DP table
-    for i in range(1, len(items) + 1):  # Start from 1 because row 0 represents "no items"
-        for w in range(weight_limit + 1):  # Include 0 to weight_limit
-            weight = items[i - 1]["weight"]  # i-1 because items are 0-indexed
-            value = items[i - 1]["value"]
-
-            if weight <= w:
-                # Option to include the item or not
-                dp[i][w] = max(dp[i - 1][w], value + dp[i - 1][w - weight])
-            else:
-                # Can't include the item, so take the previous value
-                dp[i][w] = dp[i - 1][w]
-
-    # Backtrack to find selected items
-    w = weight_limit
-    selected_items = []
-
-    for i in range(n, 0, -1):
-        if dp[i][w] != dp[i - 1][w]:  # If value changed, the item was included
-            selected_items.append(items[i - 1])
-            w -= items[i - 1]["weight"]
-
-    selected_items.reverse()  # Reverse to maintain original order
-    return dp[n][weight_limit], selected_items
+    for generation in range(generations):
+        # Generate population based on probabilities
+        population = []
+        for _ in range(population_size):
+            solution = [1 if random.random() < probabilities[i] else 0 for i in range(n)]
+            population.append(solution)
+        
+        # Evaluate population
+        evaluated = [(solution, knapsack_value(solution, items, weight_limit)) for solution in population]
+        evaluated = [(sol, val) for sol, (val, _) in evaluated if val > 0]  # Keep only valid solutions
+        evaluated.sort(key=lambda x: x[1], reverse=True)  # Sort by value
+        
+        if not evaluated:
+            continue
+        
+        # Update best solution
+        if evaluated[0][1] > best_value:
+            best_solution = evaluated[0][0]
+            best_value = evaluated[0][1]
+        
+        # Select elite solutions
+        top_k = 5
+        elites = [sol for sol, _ in evaluated[:top_k]]
+        
+        # Update probabilities
+        for i in range(n):
+            probabilities[i] = sum(sol[i] for sol in elites) / top_k
+        print(probabilities)
+    
+    return best_solution, best_value
 
 
 # Example usage
@@ -101,9 +66,6 @@ items = [
 ]
 weight_limit = 7
 
-
-max_value, selected_items = knapsack(items, weight_limit)
-print(f"Maximum value: {max_value}")
-print("Selected items:")
-for item in selected_items:
-    print(item)
+solution, value = eda_knapsack(items, weight_limit)
+print(f"Best solution: {solution}")
+print(f"Maximum value: {value}")
